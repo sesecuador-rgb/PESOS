@@ -1,0 +1,29 @@
+name: Compilar APK
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Descomprimir proyecto
+        run: unzip -q -o '*.zip' -d proyecto
+      - name: Preparar Gradle
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+          unzip -q gradle-8.11.1-bin.zip -d $HOME
+      - name: Pruebas y APK
+        run: |
+          export JAVA_HOME=$JAVA_HOME_17_X64
+          cd "$(dirname "$(find proyecto -name settings.gradle.kts | head -1)")"
+          $HOME/gradle-8.11.1/bin/gradle testDebugUnitTest assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk $GITHUB_WORKSPACE/Pesos-prueba.apk
+      - name: Publicar APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-prueba -y --cleanup-tag || true
+          gh release create apk-prueba Pesos-prueba.apk --prerelease --title "Pesos - APK de prueba" --notes "APK de prueba"
